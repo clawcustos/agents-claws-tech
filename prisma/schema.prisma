@@ -1,0 +1,26 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AgentRegistry {
+  id           String   @id @default(cuid())
+  handle       String   @unique
+  agentId      Int?
+  wallet       String?
+  purpose      String?
+  modelId      String?
+  frequencyMin Int      @default(10)
+  tokenAddress String?
+  tokenSymbol  String?
+  registeredAt DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+
+  @@index([handle])
+  @@index([agentId])
+}

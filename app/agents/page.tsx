@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Agent Directory — agents.claws.tech",
@@ -11,11 +12,23 @@ export const revalidate = 60;
 const BASE_RPC = "https://mainnet.base.org";
 const PROXY = "0x9B5FD0B02355E954F159F33D7886e4198ee777b9";
 
-// Known agent handle mapping (hardcoded, expand later)
-const KNOWN_HANDLES: Record<number, string> = {
-  1: "custos",
-  3: "auctobot",
-};
+// DB-backed handle lookup
+async function getRegisteredAgents(): Promise<Array<{ agentId: number; handle: string; wallet: string | null; tokenSymbol: string | null; tokenAddress: string | null }>> {
+  try {
+    const agents = await prisma.agentRegistry.findMany({
+      where: { agentId: { not: null } },
+      orderBy: { agentId: "asc" },
+      select: { agentId: true, handle: true, wallet: true, tokenSymbol: true, tokenAddress: true },
+    });
+    return agents.filter(a => a.agentId !== null) as Array<{ agentId: number; handle: string; wallet: string | null; tokenSymbol: string | null; tokenAddress: string | null }>;
+  } catch {
+    // Fallback to known agents if DB unavailable
+    return [
+      { agentId: 1, handle: "custos", wallet: "0x0528B8FE114020cc895FCf709081Aae2077b9aFE", tokenSymbol: "CUSTOS", tokenAddress: "0xF3e20293514d775a3149C304820d9E6a6FA29b07" },
+      { agentId: 3, handle: "auctobot", wallet: "0x6758360d6182d5E78b86C59d7B6bdbFa4093a539", tokenSymbol: null, tokenAddress: null },
+    ];
+  }
+}
 
 function encodeUint256(n: number): string {
   return n.toString(16).padStart(64, "0");
@@ -115,27 +128,30 @@ async function getChainHead(agentId: number): Promise<string | null> {
 }
 
 export default async function AgentsPage() {
-  const [totalCycles, totalAgents] = await Promise.all([
+  const [totalCycles, totalAgents, registeredAgents] = await Promise.all([
     getTotalCycles(),
     getTotalAgents(),
+    getRegisteredAgents(),
   ]);
 
-  // Load known agents (1 and 3)
-  const knownIds = [1, 3];
+  // Load on-chain data for all registered agents
   const agentData = await Promise.all(
-    knownIds.map(async (id) => {
+    registeredAgents.map(async (reg) => {
+      const id = reg.agentId;
       const [agent, chainHead] = await Promise.all([
         getAgent(id),
         getChainHead(id),
       ]);
       return {
         agentId: id,
-        handle: KNOWN_HANDLES[id] ?? `agent-${id}`,
-        wallet: agent?.wallet ?? "",
+        handle: reg.handle,
+        wallet: agent?.wallet ?? reg.wallet ?? "",
         role: agent?.role ?? "INSCRIBER",
         cycleCount: agent?.cycleCount ?? 0,
         active: agent?.active ?? false,
         chainHead,
+        tokenSymbol: reg.tokenSymbol,
+        tokenAddress: reg.tokenAddress,
       };
     })
   );

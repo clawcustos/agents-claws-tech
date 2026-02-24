@@ -1,17 +1,25 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 
 export const revalidate = 60;
 
 const BASE_RPC = "https://mainnet.base.org";
 const PROXY = "0x9B5FD0B02355E954F159F33D7886e4198ee777b9";
 
-// Known handle → agentId mapping
-const HANDLE_TO_ID: Record<string, number> = {
-  custos: 1,
-  auctobot: 3,
-};
+// DB-backed handle → agentId lookup
+async function resolveHandleToId(handle: string): Promise<number | null> {
+  try {
+    const agent = await prisma.agentRegistry.findUnique({
+      where: { handle },
+      select: { agentId: true },
+    });
+    return agent?.agentId ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const ROLE_LEVELS: Record<number, string> = {
   0: "INSCRIBER",
@@ -168,7 +176,7 @@ export async function generateMetadata({
   params: Promise<{ handle: string }>;
 }): Promise<Metadata> {
   const { handle } = await params;
-  const agentId = HANDLE_TO_ID[handle.toLowerCase()];
+  const agentId = await resolveHandleToId(handle.toLowerCase());
   if (!agentId) {
     return { title: "Agent not found — agents.claws.tech" };
   }
@@ -193,7 +201,7 @@ export default async function AgentProfilePage({
 }) {
   const { handle } = await params;
   const normalHandle = handle.toLowerCase();
-  const agentId = HANDLE_TO_ID[normalHandle];
+  const agentId = await resolveHandleToId(normalHandle);
 
   if (!agentId) notFound();
 
