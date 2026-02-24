@@ -97,17 +97,18 @@ async function getChainHead(agentId: number): Promise<string | null> {
 }
 
 interface Inscription {
-  agentId: number; blockType: string; summary: string;
-  cycleCount: number; txHash?: string; blockNumber?: number;
+  id: number; agentId: number; blockType: string; summary: string;
+  cycleCount?: number; txHash?: string; blockNumber?: number;
+  proofHash?: string; prevHash?: string; basescanUrl?: string;
 }
 
 async function getInscriptions(agentId: number): Promise<Inscription[]> {
   try {
-    const res = await fetch(`https://dashboard.claws.tech/api/inscriptions?agentId=${agentId}&limit=8`, { next: { revalidate: 60 } });
+    const res = await fetch(`https://dashboard.claws.tech/api/inscriptions?agentId=${agentId}&limit=30`, { next: { revalidate: 60 } });
     if (!res.ok) return [];
     const data = await res.json();
-    const items: Inscription[] = data.inscriptions ?? data ?? [];
-    return items.filter(i => i.agentId === agentId || !i.agentId).slice(0, 8);
+    const items: Inscription[] = data.cycles ?? data.inscriptions ?? data ?? [];
+    return items.filter(i => i.agentId === agentId || !i.agentId).slice(0, 30);
   } catch { return []; }
 }
 
@@ -287,6 +288,98 @@ export default async function AgentProfilePage({ params }: { params: Promise<{ h
           </section>
         )}
 
+        {/* ── INSCRIPTION CHAIN VIZ ───────────────────────────────── */}
+        {inscriptions.length > 0 && (() => {
+          // reverse to oldest-first for timeline (left → right)
+          const chain = [...inscriptions].reverse();
+          const NODE_W = 18;
+          const NODE_H = 36;
+          const GAP    = 8;
+          const STEP   = NODE_W + GAP;
+          const SVG_H  = 80;
+          const SVG_W  = chain.length * STEP + 2;
+
+          return (
+            <section style={{ marginBottom: 40 }}>
+              <div style={{ display: "flex", gap: 2, marginBottom: 12, alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+                  <div style={{ width: 3, height: 14, background: "var(--red)" }} />
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.25em", textTransform: "uppercase", color: "var(--grey-700)" }}>
+                    Inscription Chain · last {chain.length}
+                  </span>
+                </div>
+                {/* legend */}
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  {Object.entries(BLOCK_COLORS).map(([type, color]) => (
+                    <div key={type} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                      <div style={{ width: 8, height: 8, background: color }} />
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "#333", textTransform: "uppercase", letterSpacing: "0.1em" }}>{type}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ background: "var(--black-elevated)", border: "var(--block-border)", padding: "16px 14px", overflowX: "auto" }}>
+                <svg
+                  width={SVG_W}
+                  height={SVG_H}
+                  style={{ display: "block", minWidth: SVG_W }}
+                  aria-label="Inscription chain timeline"
+                >
+                  {/* connecting lines (prevHash links) */}
+                  {chain.map((item, i) => {
+                    if (i === 0) return null;
+                    const x1 = (i - 1) * STEP + NODE_W;
+                    const x2 = i * STEP;
+                    const y  = SVG_H / 2;
+                    return (
+                      <line key={`line-${i}`}
+                        x1={x1} y1={y} x2={x2} y2={y}
+                        stroke="#1a1a1a" strokeWidth={1}
+                      />
+                    );
+                  })}
+
+                  {/* block nodes */}
+                  {chain.map((item, i) => {
+                    const color = BLOCK_COLORS[item.blockType] ?? "#94a3b8";
+                    const x = i * STEP;
+                    const y = (SVG_H - NODE_H) / 2;
+                    const url = item.basescanUrl ?? (item.txHash ? `https://basescan.org/tx/${item.txHash}` : null);
+                    const shortId = item.id ? `#${item.id}` : `${i + 1}`;
+                    const tag = url
+                      ? <a href={url} target="_blank" rel="noopener noreferrer">
+                          <rect x={x} y={y} width={NODE_W} height={NODE_H} fill={color} opacity={0.85} />
+                          <title>{item.blockType.toUpperCase()} {shortId}: {item.summary}</title>
+                        </a>
+                      : <rect x={x} y={y} width={NODE_W} height={NODE_H} fill={color} opacity={0.85} />;
+
+                    return (
+                      <g key={`node-${i}`}>
+                        {url ? (
+                          <a href={url} target="_blank" rel="noopener noreferrer">
+                            <rect x={x} y={y} width={NODE_W} height={NODE_H} fill={color} opacity={0.85} />
+                            <title>{item.blockType.toUpperCase()} {shortId}: {item.summary}</title>
+                          </a>
+                        ) : (
+                          <>
+                            <rect x={x} y={y} width={NODE_W} height={NODE_H} fill={color} opacity={0.85} />
+                            <title>{item.blockType.toUpperCase()} {shortId}: {item.summary}</title>
+                          </>
+                        )}
+                      </g>
+                    );
+                  })}
+
+                  {/* labels: oldest / newest */}
+                  <text x={0} y={SVG_H - 2} fontFamily="monospace" fontSize={8} fill="#333" letterSpacing="0.1em">OLDEST</text>
+                  <text x={SVG_W - 2} y={SVG_H - 2} fontFamily="monospace" fontSize={8} fill="#333" letterSpacing="0.1em" textAnchor="end">LATEST →</text>
+                </svg>
+              </div>
+            </section>
+          );
+        })()}
+
         {/* ── INSCRIPTIONS ────────────────────────────────────────── */}
         <section style={{ marginBottom: 40 }}>
           <div style={{ display: "flex", gap: 2, marginBottom: 12, alignItems: "center" }}>
@@ -298,9 +391,9 @@ export default async function AgentProfilePage({ params }: { params: Promise<{ h
 
           {inscriptions.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {inscriptions.map((item, i) => {
+              {inscriptions.slice(0, 10).map((item, i) => {
                 const color = BLOCK_COLORS[item.blockType] ?? "#94a3b8";
-                const url = item.txHash ? `https://basescan.org/tx/${item.txHash}` : null;
+                const url = item.basescanUrl ?? (item.txHash ? `https://basescan.org/tx/${item.txHash}` : null);
                 return (
                   <div key={i} style={{
                     display: "flex", alignItems: "center", gap: 10,
@@ -318,10 +411,10 @@ export default async function AgentProfilePage({ params }: { params: Promise<{ h
                     {url ? (
                       <a href={url} target="_blank" rel="noopener noreferrer"
                         style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--grey-700)", textDecoration: "none", flexShrink: 0 }}>
-                        #{item.cycleCount} ↗
+                        #{item.id} ↗
                       </a>
                     ) : (
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--grey-700)", flexShrink: 0 }}>#{item.cycleCount}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--grey-700)", flexShrink: 0 }}>#{item.id}</span>
                     )}
                   </div>
                 );
