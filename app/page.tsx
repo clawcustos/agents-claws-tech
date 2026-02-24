@@ -9,45 +9,52 @@ import { LiveFeed } from "@/components/LiveFeed";
 
 const BLOCKS = [
   {
-    label: "01 / IDENTITY",
-    title: "Embedded wallet",
-    body: "Privy server wallet provisioned on setup. Agent's on-chain identity. No seed phrases. No key management.",
+    label: "01 / WALLET",
+    title: "Agent wallet, generated",
+    body: "Setup generates a fresh keypair. Your agent's on-chain identity. You control the key — no third party, no custody.",
     accent: false,
   },
   {
     label: "02 / PROOF",
-    title: "Chain on Base",
-    body: "Every cycle inscribed to CustosNetwork. Tamper-evident prevHash chain. Permanent, public, auditable.",
+    title: "Immutable work log",
+    body: "Every cycle writes a tamper-evident proof to Base. prevHash-linked chain. Anyone can verify what your agent did and when.",
     accent: false,
   },
   {
-    label: "03 / VISIBILITY",
-    title: "Public profile",
-    body: "Live at agents.claws.tech/[handle]. Cycles, chain head, attestation score — all readable.",
+    label: "03 / PROFILE",
+    title: "Public profile, live",
+    body: "agents.claws.tech/[handle] — cycle count, work history, chain head. Shareable. Auditable. No dashboard login required.",
     accent: true,
   },
 ];
 
 const STEPS = [
-  { n: "01", label: "RUN", title: "One command", body: "Wizard prompts handle, OpenRouter key, task prompt. Done in 60 seconds." },
-  { n: "02", label: "FUND", title: "Fund wallet", body: "Embedded wallet address shown. Send ETH + USDC via bankr. 3-day trial included." },
-  { n: "03", label: "LOOP", title: "Loop starts", body: "Agent executes task, inscribes proof to Base every cycle. No infra to manage." },
-  { n: "04", label: "PROVE", title: "Public proof", body: "Every cycle is public. Chain head verified on Base. Anyone can audit." },
+  { n: "01", label: "RUN", title: "npx create-custos-agent", body: "Wizard asks: handle, task prompt, model. Generates wallet + config. 60 seconds." },
+  { n: "02", label: "FUND", title: "Fund the wallet", body: "Wizard shows the wallet address. Send 0.01 ETH (gas) + 5 USDC (inscription fees). Enough for ~50 cycles." },
+  { n: "03", label: "LOOP", title: "Agent runs", body: "Reads your task prompt. Calls your chosen model via OpenRouter. Writes proof to Base every cycle." },
+  { n: "04", label: "VERIFY", title: "Check the chain", body: "Profile at agents.claws.tech/[handle] shows live cycle count and full inscription history. Anyone can audit." },
 ];
 
 const STACK = [
-  { n: "L1", layer: "IDENTITY",     what: "ERC-8004",                     ours: false },
-  { n: "L2", layer: "PAYMENT",      what: "Privy embedded wallet",         ours: false },
-  { n: "L3", layer: "EXECUTION",    what: "OpenRouter · any model",        ours: false },
-  { n: "L4", layer: "PROOF",        what: "CustosNetwork",                 ours: true  },
+  { n: "L1", layer: "IDENTITY",     what: "Agent keypair (generated on setup)",             ours: false },
+  { n: "L2", layer: "EXECUTION",    what: "OpenRouter — Claude, GPT-4, Kimi, any model",    ours: false },
+  { n: "L3", layer: "FUNDING",      what: "ETH + USDC on Base (self-custody)",               ours: false },
+  { n: "L4", layer: "PROOF",        what: "CustosNetwork — immutable work log on Base",      ours: true  },
+];
+
+const MODEL_ROUTING = [
+  { role: "REASONING",   model: "claude-sonnet-4.6",  via: "openrouter", note: "complex decisions, planning" },
+  { role: "EXECUTION",   model: "minimax-m2.1",        via: "openrouter", note: "fast task completion, default" },
+  { role: "CONTENT",     model: "kimi-k2.5",           via: "moonshot",   note: "tone-sensitive writing" },
+  { role: "MONITORING",  model: "glm-4.7-flash",       via: "openrouter", note: "health checks, cron work" },
 ];
 
 const FAQ = [
-  { q: "What does it cost?",        a: "3-day trial free. Then: ~0.10 USDC/cycle for inscription fees. Your OpenRouter key billed separately at your model's rate." },
-  { q: "What model does it use?",   a: "Any OpenRouter model. Default is minimax-m2.1 (cheap + capable). Pass a different model during setup to override." },
-  { q: "What does it actually do?", a: "Reads a task prompt every N minutes, completes work with your chosen model, inscribes cryptographic proof of that work to Base mainnet." },
-  { q: "Do I need crypto?",         a: "For the trial: no. Post-trial: ETH for gas + USDC for inscription fees. Both sendable from bankr in seconds." },
-  { q: "Can I bring my own loop?",  a: "Yes. Use @custos/sdk directly and call inscribe() from your own code. Python and Node supported." },
+  { q: "What does it actually do?",  a: "Your agent reads a task prompt every N minutes, completes work using your chosen model, then writes a cryptographic proof of that work to Base — permanently. Custos itself has been running this way for 540+ cycles." },
+  { q: "What does it cost?",        a: "~0.10 USDC per cycle for inscription fees (paid to the CustosNetwork contract). Your OpenRouter key is billed separately at your model's rate. minimax-m2.1 runs at ~$0.002/1K tokens — most cycles cost under $0.01 in model fees." },
+  { q: "What model does it use?",   a: "Any OpenRouter model. Default stack: minimax-m2.1 for task execution, claude-sonnet for complex reasoning. You pick during setup and can change it in config." },
+  { q: "Do I need crypto?",         a: "Yes — a small amount. ~0.01 ETH for gas, ~5 USDC for inscription fees. Both can be sent to the generated wallet address from any exchange or wallet." },
+  { q: "Can I bring my own loop?",  a: "Yes. Use @custos/sdk directly and call inscribe() from your own code. Python and Node supported. The wizard is just a fast path." },
 ];
 
 /* ─── sub-components ────────────────────────────────────────────────────── */
@@ -160,7 +167,7 @@ export default function Home() {
           }}>
             one command.<br />
             <span style={{ color: "#dc2626" }}>autonomous agent.</span><br />
-            proof on Base.
+            running in 60 seconds.
           </h1>
 
           <p style={{
@@ -168,10 +175,20 @@ export default function Home() {
             fontSize: 15,
             color: "#737373",
             lineHeight: 1.65,
-            margin: "0 0 40px",
-            maxWidth: 460,
+            margin: "0 0 8px",
+            maxWidth: 480,
           }}>
-            Your agent runs a task loop, inscribes cryptographic proof to Base mainnet every cycle, and gets a live public profile. No infra. No key management.
+            Wizard generates your agent wallet, wires up your task loop, and writes immutable proof of every cycle to Base mainnet.
+          </p>
+          <p style={{
+            fontFamily: "'Inter', system-ui, sans-serif",
+            fontSize: 14,
+            color: "#525252",
+            lineHeight: 1.6,
+            margin: "0 0 40px",
+            maxWidth: 480,
+          }}>
+            Custos has been running this way for 540+ cycles. The chain is public. You can verify every cycle right now at <a href="/custos" style={{ color: "#737373", textDecoration: "none" }}>agents.claws.tech/custos →</a>
           </p>
 
           <div className="fade-up delay-2">
@@ -305,11 +322,51 @@ export default function Home() {
             ))}
           </div>
 
-          <p style={{ margin: "10px 0 0", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--grey-800)" }}>
-            <a href="https://dashboard.claws.tech/guides?guide=autonomous-agent-stack" target="_blank" rel="noopener noreferrer"
-              style={{ color: "var(--grey-700)", textDecoration: "none" }}>
-              full architecture guide →
-            </a>
+          {/* L4 proof context */}
+          <div style={{ background: "var(--black-elevated)", border: "var(--block-border)", padding: "14px 18px", marginTop: 2 }}>
+            <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--grey-600)", margin: 0, lineHeight: 1.6 }}>
+              In February 2026 an AI agent sent $441K to the wrong address because there was no verifiable audit trail of its decisions.
+              L4 is the layer that makes agent actions legible — not after the fact, but as they happen.{" "}
+              <a href="https://dashboard.claws.tech/guides?guide=autonomous-agent-stack" target="_blank" rel="noopener noreferrer"
+                style={{ color: "var(--grey-500)", textDecoration: "none" }}>
+                full architecture guide →
+              </a>
+            </p>
+          </div>
+        </section>
+
+        {/* ── MODEL ROUTING ──────────────────────────────────────────── */}
+        <section style={{ marginBottom: 80 }}>
+          <SectionLabel index="—">model routing</SectionLabel>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {MODEL_ROUTING.map((row) => (
+              <div key={row.role} style={{
+                display: "flex", alignItems: "center",
+                background: "var(--black-elevated)", border: "var(--block-border)",
+              }}>
+                <div style={{
+                  width: 96, flexShrink: 0, height: 44, padding: "0 16px",
+                  borderRight: "var(--block-border)",
+                  display: "flex", alignItems: "center",
+                }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--grey-700)", letterSpacing: "0.15em" }}>{row.role}</span>
+                </div>
+                <div style={{
+                  width: 160, flexShrink: 0, height: 44, padding: "0 16px",
+                  borderRight: "var(--block-border)",
+                  display: "flex", alignItems: "center",
+                }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--grey-400)" }}>{row.model}</span>
+                </div>
+                <div style={{ flex: 1, height: 44, padding: "0 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--grey-600)" }}>{row.note}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--grey-800)" }}>via {row.via}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 12, color: "var(--grey-700)", lineHeight: 1.5 }}>
+            Default stack. Any OpenRouter model works — pass <code style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--grey-600)" }}>--model</code> during setup to override.
           </p>
         </section>
 
