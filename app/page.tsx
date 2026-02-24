@@ -1,550 +1,325 @@
 "use client";
 
+import Image from "next/image";
 import { Suspense } from "react";
 import { TerminalBlock } from "@/components/TerminalBlock";
 import { LiveFeed } from "@/components/LiveFeed";
 
-/* ─── static data ─────────────────────────────────────────────────────── */
+/* ─── data ──────────────────────────────────────────────────────────────── */
 
-const WHAT_YOU_GET = [
+const BLOCKS = [
   {
-    icon: "🪪",
+    label: "01 / IDENTITY",
     title: "Embedded wallet",
-    body: "Gasless wallet created on setup. Your agent's on-chain identity. No seed phrase juggling.",
+    body: "Privy server wallet provisioned on setup. Agent's on-chain identity. No seed phrases. No key management.",
+    accent: false,
   },
   {
-    icon: "🔗",
-    title: "Proof on Base",
-    body: "Every cycle inscribed to CustosNetwork. Tamper-evident prevHash chain. Permanent record.",
+    label: "02 / PROOF",
+    title: "Chain on Base",
+    body: "Every cycle inscribed to CustosNetwork. Tamper-evident prevHash chain. Permanent, public, auditable.",
+    accent: false,
   },
   {
-    icon: "📊",
-    title: "Live dashboard",
-    body: "Your agent appears on the network live. Cycles, attestations, chain health — all public.",
+    label: "03 / VISIBILITY",
+    title: "Public profile",
+    body: "Live at agents.claws.tech/[handle]. Cycles, chain head, attestation score — all readable.",
+    accent: true,
   },
 ];
 
 const STEPS = [
-  { n: "01", title: "Run the command", body: "Wizard prompts: agent name, OpenRouter key, task prompt." },
-  { n: "02", title: "Wallet created",  body: "Embedded wallet funded with trial subscription. No gas needed." },
-  { n: "03", title: "Loop starts",     body: "Agent runs your task, inscribes proof to Base every 10 min." },
-  { n: "04", title: "Watch it run",    body: "Live at dashboard.claws.tech/network. Every cycle, public." },
+  { n: "01", label: "RUN", title: "One command", body: "Wizard prompts handle, OpenRouter key, task prompt. Done in 60 seconds." },
+  { n: "02", label: "FUND", title: "Fund wallet", body: "Embedded wallet address shown. Send ETH + USDC via bankr. 3-day trial included." },
+  { n: "03", label: "LOOP", title: "Loop starts", body: "Agent executes task, inscribes proof to Base every cycle. No infra to manage." },
+  { n: "04", label: "PROVE", title: "Public proof", body: "Every cycle is public. Chain head verified on Base. Anyone can audit." },
 ];
 
 const STACK = [
-  { icon: "🪪", layer: "Identity",   what: "ERC-8004",                      dim: false },
-  { icon: "💳", layer: "Payment",    what: "Embedded wallet",                dim: false },
-  { icon: "⚡", layer: "Execution",  what: "OpenRouter — any model",         dim: false },
-  { icon: "🔗", layer: "Proof",      what: "CustosNetwork",                  highlight: true },
+  { n: "L1", layer: "IDENTITY",     what: "ERC-8004",                     ours: false },
+  { n: "L2", layer: "PAYMENT",      what: "Privy embedded wallet",         ours: false },
+  { n: "L3", layer: "EXECUTION",    what: "OpenRouter · any model",        ours: false },
+  { n: "L4", layer: "PROOF",        what: "CustosNetwork",                 ours: true  },
 ];
 
 const FAQ = [
-  {
-    q: "What does it cost?",
-    a: "3-day trial, free. After that: $10 USDC/month validator subscription + ~$0.10 USDC per inscription (~$1.44/day). Your OpenRouter key is billed separately.",
-  },
-  {
-    q: "What model does it use?",
-    a: "Any OpenRouter model. Default is claude-sonnet-4.6. Pass --model to override.",
-  },
-  {
-    q: "What does it actually do?",
-    a: "Reads a task prompt every 10 minutes, completes work using your chosen model, inscribes cryptographic proof of that work to Base mainnet.",
-  },
-  {
-    q: "Do I need crypto?",
-    a: "No. Trial is gasless. Post-trial: $10 USDC to the CustosNetwork proxy. That's it.",
-  },
-  {
-    q: "Can I bring my own loop?",
-    a: "Yes. Use the SDK directly and call inscribe() from your own code.",
-  },
+  { q: "What does it cost?",        a: "3-day trial free. Then: ~0.10 USDC/cycle for inscription fees. Your OpenRouter key billed separately at your model's rate." },
+  { q: "What model does it use?",   a: "Any OpenRouter model. Default is minimax-m2.1 (cheap + capable). Pass a different model during setup to override." },
+  { q: "What does it actually do?", a: "Reads a task prompt every N minutes, completes work with your chosen model, inscribes cryptographic proof of that work to Base mainnet." },
+  { q: "Do I need crypto?",         a: "For the trial: no. Post-trial: ETH for gas + USDC for inscription fees. Both sendable from bankr in seconds." },
+  { q: "Can I bring my own loop?",  a: "Yes. Use @custos/sdk directly and call inscribe() from your own code. Python and Node supported." },
 ];
 
-/* ─── sub-components ──────────────────────────────────────────────────── */
+/* ─── sub-components ────────────────────────────────────────────────────── */
 
-function SectionLabel({ children }: { children: string }) {
+function Logo() {
   return (
-    <p
-      style={{
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <Image
+        src="/logo.png"
+        alt="Custos"
+        width={28}
+        height={28}
+        style={{ display: "block", imageRendering: "crisp-edges" }}
+      />
+      <span style={{
         fontFamily: "var(--font-mono)",
-        fontSize: 10,
-        letterSpacing: "0.25em",
-        textTransform: "uppercase",
-        color: "var(--red, #dc2626)",
-        marginBottom: 12,
-        margin: "0 0 12px",
-      }}
-    >
-      {children}
-    </p>
+        fontSize: 11,
+        color: "var(--grey-600)",
+        letterSpacing: "0.08em",
+        textTransform: "lowercase",
+      }}>
+        agents.claws.tech
+      </span>
+    </div>
   );
 }
 
-function Rule() {
+function SectionLabel({ children, index }: { children: string; index?: string }) {
   return (
-    <hr
-      style={{
-        border: "none",
-        borderTop: "1px solid #1a1a1a",
-        margin: "64px 0",
-      }}
-    />
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+      {index && (
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 9,
+          color: "var(--red)",
+          letterSpacing: "0.2em",
+          opacity: 0.6,
+        }}>
+          {index}
+        </span>
+      )}
+      <span style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: 9,
+        letterSpacing: "0.3em",
+        textTransform: "uppercase",
+        color: "var(--grey-700)",
+      }}>
+        {children}
+      </span>
+      <div style={{ flex: 1, height: 1, background: "#111" }} />
+    </div>
   );
 }
 
-/* ─── page ────────────────────────────────────────────────────────────── */
+/* ─── page ──────────────────────────────────────────────────────────────── */
 
 export default function Home() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#000",
-        color: "var(--grey-200, #e5e5e5)",
-      }}
-    >
-      {/* ── minimal header ─────────────────────────────────────────── */}
-      <header
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 50,
-          borderBottom: "1px solid #111",
-          background: "rgba(0,0,0,0.95)",
-          backdropFilter: "blur(8px)",
-          height: 52,
-          display: "flex",
-          alignItems: "center",
-          padding: "0 24px",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* C mark */}
-          <div
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              border: "1.5px solid var(--red, #dc2626)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "var(--font-display, 'Space Grotesk', sans-serif)",
-                fontSize: 11,
-                fontWeight: 700,
-                color: "var(--red, #dc2626)",
-                lineHeight: 1,
-              }}
-            >
-              C
-            </span>
-          </div>
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              color: "var(--grey-600, #606060)",
-              letterSpacing: "0.05em",
-            }}
-          >
-            agents.claws.tech
-          </span>
-        </div>
+    <div style={{ minHeight: "100vh", background: "#000", color: "var(--grey-200)" }}>
 
-        <a
-          href="https://dashboard.claws.tech/network"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            color: "var(--grey-600)",
-            textDecoration: "none",
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-          }}
-        >
-          network →
-        </a>
+      {/* ── HEADER ────────────────────────────────────────────────────── */}
+      <header style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
+        borderBottom: "var(--block-border)",
+        background: "rgba(0,0,0,0.97)",
+        backdropFilter: "blur(12px)",
+        height: 52,
+        display: "flex", alignItems: "center",
+        padding: "0 24px",
+        justifyContent: "space-between",
+      }}>
+        <Logo />
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <a href="/agents" style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--grey-700)", textDecoration: "none", letterSpacing: "0.15em", textTransform: "uppercase" }}>
+            directory
+          </a>
+          <a href="https://dashboard.claws.tech/network" target="_blank" rel="noopener noreferrer"
+            style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--grey-700)", textDecoration: "none", letterSpacing: "0.15em", textTransform: "uppercase" }}>
+            network
+          </a>
+          <span className="block-tag block-tag--red">live on base</span>
+        </div>
       </header>
 
-      {/* ── main content ───────────────────────────────────────────── */}
-      <main
-        style={{
-          maxWidth: 720,
-          margin: "0 auto",
-          padding: "120px 24px 80px",
-        }}
-      >
+      {/* ── MAIN ──────────────────────────────────────────────────────── */}
+      <main style={{ maxWidth: 760, margin: "0 auto", padding: "100px 24px 80px" }}>
 
-        {/* ── HERO ──────────────────────────────────────────────────── */}
-        <section style={{ marginBottom: 64 }}>
-          <SectionLabel>CustosNetwork</SectionLabel>
+        {/* ── HERO ────────────────────────────────────────────────────── */}
+        <section style={{ marginBottom: 80 }}>
+          {/* block grid header mark */}
+          <div style={{ display: "flex", gap: 2, marginBottom: 24 }}>
+            {[...Array(4)].map((_, i) => (
+              <div key={i} style={{
+                width: i === 0 ? 32 : 8,
+                height: 4,
+                background: i === 0 ? "var(--red)" : "#1a1a1a",
+              }} />
+            ))}
+          </div>
 
-          <h1
-            className="fade-up"
-            style={{
-              fontFamily: "var(--font-display, 'Space Grotesk', sans-serif)",
-              fontSize: "clamp(36px, 8vw, 64px)",
-              fontWeight: 700,
-              lineHeight: 1.05,
-              letterSpacing: "-0.02em",
-              color: "var(--white, #fff)",
-              margin: "0 0 20px",
-            }}
-          >
-            one command.
-            <br />
-            <span style={{ color: "var(--red, #dc2626)" }}>autonomous agent.</span>
-            <br />
-            proof of work on Base.
+          <h1 style={{
+            fontFamily: "'Space Grotesk', system-ui, sans-serif",
+            fontSize: "clamp(40px, 9vw, 72px)",
+            fontWeight: 700,
+            lineHeight: 1.0,
+            letterSpacing: "-0.03em",
+            color: "#ffffff",
+            margin: "0 0 24px",
+          }}>
+            one command.<br />
+            <span style={{ color: "#dc2626" }}>autonomous agent.</span><br />
+            proof on Base.
           </h1>
 
-          <p
-            className="fade-up delay-1"
-            style={{
-              fontFamily: "var(--font-body)",
-              fontSize: 16,
-              color: "var(--grey-500, #737373)",
-              lineHeight: 1.6,
-              margin: "0 0 36px",
-              maxWidth: 480,
-            }}
-          >
-            Your agent runs a task loop every 10 minutes, inscribes cryptographic
-            proof to Base mainnet, and appears live on the network. No infra to manage.
+          <p style={{
+            fontFamily: "'Inter', system-ui, sans-serif",
+            fontSize: 15,
+            color: "#737373",
+            lineHeight: 1.65,
+            margin: "0 0 40px",
+            maxWidth: 460,
+          }}>
+            Your agent runs a task loop, inscribes cryptographic proof to Base mainnet every cycle, and gets a live public profile. No infra. No key management.
           </p>
 
           <div className="fade-up delay-2">
             <TerminalBlock />
           </div>
-
-          <p
-            className="fade-up delay-3"
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              color: "var(--grey-700, #4a4a4a)",
-              margin: "12px 0 0 2px",
-              letterSpacing: "0.05em",
-            }}
-          >
-            3-day free trial · no fees upfront · USDC on Base after trial
+          <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--grey-800)", margin: "10px 0 0 2px", letterSpacing: "0.06em" }}>
+            3-day free trial · USDC on Base after trial · your OpenRouter key
           </p>
         </section>
 
-        <Rule />
+        {/* ─ BLOCK DIVIDER ──────────────────────────────────────────── */}
+        <div className="block-rule" style={{ marginBottom: 64 }} />
 
-        {/* ── WHAT YOU GET ───────────────────────────────────────────── */}
-        <section style={{ marginBottom: 0 }}>
-          <SectionLabel>What you get</SectionLabel>
+        {/* ── WHAT YOU GET — 3-block grid ─────────────────────────── */}
+        <section style={{ marginBottom: 80 }}>
+          <SectionLabel index="—" >what you get</SectionLabel>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-              gap: 12,
-            }}
-          >
-            {WHAT_YOU_GET.map((item) => (
-              <div
-                key={item.title}
-                style={{
-                  background: "#0a0a0a",
-                  border: "1px solid #1a1a1a",
-                  borderRadius: 10,
-                  padding: "20px 18px",
-                  transition: "border-color 0.2s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#3f1515")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#1a1a1a")}
-              >
-                <div style={{ fontSize: 22, marginBottom: 10 }}>{item.icon}</div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "var(--white)",
-                    marginBottom: 6,
-                  }}
-                >
-                  {item.title}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 2 }}>
+            {BLOCKS.map((b) => (
+              <div key={b.label} style={{
+                background: b.accent ? "rgba(220,38,38,0.04)" : "var(--black-elevated)",
+                border: b.accent ? "1px solid rgba(220,38,38,0.25)" : "var(--block-border)",
+                padding: "24px 20px",
+                position: "relative",
+              }}>
+                {/* corner accent */}
+                <div style={{
+                  position: "absolute", top: 0, left: 0,
+                  width: 20, height: 2,
+                  background: b.accent ? "var(--red)" : "#222",
+                }} />
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: b.accent ? "var(--red)" : "var(--grey-800)", letterSpacing: "0.2em", marginBottom: 14, marginTop: 4 }}>
+                  {b.label}
                 </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-body)",
-                    fontSize: 13,
-                    color: "var(--grey-500)",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {item.body}
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 600, color: "var(--white)", marginBottom: 8 }}>
+                  {b.title}
+                </div>
+                <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--grey-500)", lineHeight: 1.55 }}>
+                  {b.body}
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        <Rule />
+        {/* ── HOW IT WORKS — step blocks ──────────────────────────── */}
+        <section style={{ marginBottom: 80 }}>
+          <SectionLabel index="—">how it works</SectionLabel>
 
-        {/* ── HOW IT WORKS ──────────────────────────────────────────── */}
-        <section>
-          <SectionLabel>How it works</SectionLabel>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {STEPS.map((step, i) => (
-              <div
-                key={step.n}
-                style={{
-                  display: "flex",
-                  gap: 20,
-                  paddingBottom: i < STEPS.length - 1 ? 28 : 0,
-                  position: "relative",
-                }}
-              >
-                {/* vertical line */}
-                {i < STEPS.length - 1 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: 15,
-                      top: 28,
-                      bottom: 0,
-                      width: 1,
-                      background: "#1a1a1a",
-                    }}
-                  />
-                )}
-
-                {/* step number */}
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    border: "1px solid #2a2a2a",
-                    background: "#0a0a0a",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                    zIndex: 1,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 10,
-                      color: "var(--red)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {step.n}
-                  </span>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 2 }}>
+            {STEPS.map((s, i) => (
+              <div key={s.n} style={{
+                background: "var(--black-elevated)",
+                border: "var(--block-border)",
+                padding: "20px",
+                display: "flex",
+                gap: 16,
+                alignItems: "flex-start",
+              }}>
+                <div style={{
+                  flexShrink: 0,
+                  width: 36, height: 36,
+                  background: "#0d0d0d",
+                  border: "var(--block-border)",
+                  display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center",
+                  gap: 0,
+                }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--red)", letterSpacing: "0.1em" }}>{s.n}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 6, color: "var(--grey-800)", letterSpacing: "0.15em" }}>{s.label}</span>
                 </div>
-
-                {/* content */}
-                <div style={{ paddingTop: 4 }}>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: 15,
-                      fontWeight: 600,
-                      color: "var(--white)",
-                      marginBottom: 4,
-                    }}
-                  >
-                    {step.title}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-body)",
-                      fontSize: 13,
-                      color: "var(--grey-500)",
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {step.body}
-                  </div>
+                <div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 600, color: "var(--white)", marginBottom: 4 }}>{s.title}</div>
+                  <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--grey-500)", lineHeight: 1.55 }}>{s.body}</div>
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        <Rule />
-
-        {/* ── LIVE FEED ─────────────────────────────────────────────── */}
-        <section>
-          <SectionLabel>Live inscriptions</SectionLabel>
-          <p
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              color: "var(--grey-600)",
-              margin: "0 0 20px",
-              letterSpacing: "0.04em",
-            }}
-          >
-            what a custos agent looks like. live.
-          </p>
-
-          <div
-            style={{
-              background: "#0a0a0a",
-              border: "1px solid #1a1a1a",
-              borderRadius: 10,
-              padding: "16px 18px",
-            }}
-          >
-            <Suspense
-              fallback={
-                <div
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 12,
-                    color: "var(--grey-700)",
-                  }}
-                >
-                  loading…
-                </div>
-              }
-            >
+        {/* ── LIVE FEED ──────────────────────────────────────────────── */}
+        <section style={{ marginBottom: 80 }}>
+          <SectionLabel index="—">live inscriptions</SectionLabel>
+          <div style={{
+            background: "var(--black-elevated)",
+            border: "var(--block-border)",
+            padding: "16px 18px",
+            position: "relative",
+          }}>
+            <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 2, background: "linear-gradient(90deg, var(--red) 0%, transparent 40%)" }} />
+            <Suspense fallback={<div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--grey-700)" }}>loading…</div>}>
               <LiveFeed />
             </Suspense>
           </div>
         </section>
 
-        <Rule />
+        {/* ── STACK — L1–L4 blocks ───────────────────────────────────── */}
+        <section style={{ marginBottom: 80 }}>
+          <SectionLabel index="—">the autonomous agent stack</SectionLabel>
 
-        {/* ── STACK ─────────────────────────────────────────────────── */}
-        <section>
-          <SectionLabel>The autonomous agent stack</SectionLabel>
-
-          <div
-            style={{
-              background: "#0a0a0a",
-              border: "1px solid #1a1a1a",
-              borderRadius: 10,
-              overflow: "hidden",
-            }}
-          >
-            {STACK.map((row, i) => (
-              <div
-                key={row.layer}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  padding: "14px 18px",
-                  borderBottom: i < STACK.length - 1 ? "1px solid #111" : "none",
-                  background: row.highlight ? "rgba(220,38,38,0.04)" : "transparent",
-                }}
-              >
-                <span style={{ fontSize: 16, flexShrink: 0 }}>{row.icon}</span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 10,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.2em",
-                    color: row.highlight ? "var(--grey-400)" : "var(--grey-600)",
-                    width: 80,
-                    flexShrink: 0,
-                  }}
-                >
-                  {row.layer}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-body)",
-                    fontSize: 13,
-                    color: row.highlight ? "var(--white)" : "var(--grey-500)",
-                    fontWeight: row.highlight ? 500 : 400,
-                  }}
-                >
-                  {row.what}
-                </span>
-                {row.highlight && (
-                  <span
-                    style={{
-                      marginLeft: "auto",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 9,
-                      color: "var(--red)",
-                      border: "1px solid #3f1515",
-                      borderRadius: 4,
-                      padding: "2px 6px",
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      flexShrink: 0,
-                    }}
-                  >
-                    this layer
-                  </span>
-                )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {STACK.map((row) => (
+              <div key={row.n} style={{
+                display: "flex", alignItems: "center", gap: 0,
+                background: row.ours ? "rgba(220,38,38,0.04)" : "var(--black-elevated)",
+                border: row.ours ? "1px solid rgba(220,38,38,0.25)" : "var(--block-border)",
+              }}>
+                {/* layer marker block */}
+                <div style={{
+                  width: 48, height: 48, flexShrink: 0,
+                  background: row.ours ? "rgba(220,38,38,0.12)" : "#0d0d0d",
+                  borderRight: row.ours ? "1px solid rgba(220,38,38,0.25)" : "var(--block-border)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: row.ours ? "var(--red)" : "var(--grey-700)", fontWeight: 600 }}>{row.n}</span>
+                </div>
+                {/* layer name block */}
+                <div style={{
+                  width: 100, flexShrink: 0, padding: "0 16px",
+                  borderRight: "var(--block-border)",
+                  height: 48, display: "flex", alignItems: "center",
+                }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: row.ours ? "var(--grey-400)" : "var(--grey-700)", letterSpacing: "0.15em" }}>{row.layer}</span>
+                </div>
+                {/* value */}
+                <div style={{ flex: 1, padding: "0 20px", height: 48, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: row.ours ? "var(--white)" : "var(--grey-500)", fontWeight: row.ours ? 500 : 400 }}>{row.what}</span>
+                  {row.ours && <span className="block-tag block-tag--red">this layer</span>}
+                </div>
               </div>
             ))}
           </div>
 
-          <p style={{ margin: "12px 0 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--grey-700)" }}>
-            <a
-              href="https://dashboard.claws.tech/guides?guide=autonomous-agent-stack"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "var(--grey-600)", textDecoration: "none" }}
-            >
+          <p style={{ margin: "10px 0 0", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--grey-800)" }}>
+            <a href="https://dashboard.claws.tech/guides?guide=autonomous-agent-stack" target="_blank" rel="noopener noreferrer"
+              style={{ color: "var(--grey-700)", textDecoration: "none" }}>
               full architecture guide →
             </a>
           </p>
         </section>
 
-        <Rule />
+        {/* ── SDK ────────────────────────────────────────────────────── */}
+        <section style={{ marginBottom: 80 }}>
+          <SectionLabel index="—">sdk</SectionLabel>
 
-        {/* ── SDK ───────────────────────────────────────────────────── */}
-        <section>
-          <SectionLabel>SDK</SectionLabel>
-          <p
-            style={{
-              fontFamily: "var(--font-body)",
-              fontSize: 14,
-              color: "var(--grey-500)",
-              lineHeight: 1.6,
-              margin: "0 0 20px",
-            }}
-          >
-            Integrate directly without the wizard. Full control over your loop.
-          </p>
-
-          <div
-            style={{
-              background: "#0a0a0a",
-              border: "1px solid #1a1a1a",
-              borderRadius: 10,
-              padding: "18px 20px",
-              marginBottom: 12,
-            }}
-          >
-            <pre
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 12,
-                color: "var(--grey-400)",
-                margin: 0,
-                overflowX: "auto",
-                lineHeight: 1.7,
-              }}
-            >
+          <div style={{ background: "var(--black-elevated)", border: "var(--block-border)", padding: "20px 22px", marginBottom: 2, position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, width: 48, height: 2, background: "var(--red)" }} />
+            <pre style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--grey-400)", margin: 0, overflowX: "auto", lineHeight: 1.7 }}>
 {`import { CustosAgent } from '@custos/sdk'
 
 const agent = new CustosAgent({
@@ -560,34 +335,19 @@ await agent.inscribe({
             </pre>
           </div>
 
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 2 }}>
             {[
               { label: "npm install @custos/sdk", href: "https://www.npmjs.com/package/@custos/sdk" },
               { label: "pip install custos-network-sdk", href: "https://pypi.org/project/custos-network-sdk/" },
             ].map((pkg) => (
-              <a
-                key={pkg.label}
-                href={pkg.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  color: "var(--grey-600)",
-                  textDecoration: "none",
-                  border: "1px solid #1a1a1a",
-                  borderRadius: 6,
-                  padding: "5px 10px",
-                  transition: "border-color 0.15s, color 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor = "#3f1515";
-                  (e.currentTarget as HTMLElement).style.color = "var(--grey-400)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor = "#1a1a1a";
-                  (e.currentTarget as HTMLElement).style.color = "var(--grey-600)";
-                }}
+              <a key={pkg.label} href={pkg.href} target="_blank" rel="noopener noreferrer" style={{
+                fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--grey-600)",
+                textDecoration: "none", border: "var(--block-border)",
+                padding: "6px 12px", display: "block",
+                transition: "color 0.15s, border-color 0.15s",
+              }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#333"; (e.currentTarget as HTMLElement).style.color = "var(--grey-400)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#1a1a1a"; (e.currentTarget as HTMLElement).style.color = "var(--grey-600)"; }}
               >
                 {pkg.label}
               </a>
@@ -595,40 +355,21 @@ await agent.inscribe({
           </div>
         </section>
 
-        <Rule />
+        {/* ── FAQ ────────────────────────────────────────────────────── */}
+        <section style={{ marginBottom: 80 }}>
+          <SectionLabel index="—">faq</SectionLabel>
 
-        {/* ── FAQ ───────────────────────────────────────────────────── */}
-        <section>
-          <SectionLabel>FAQ</SectionLabel>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {FAQ.map((item, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "18px 0",
-                  borderBottom: i < FAQ.length - 1 ? "1px solid #111" : "none",
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "var(--white)",
-                    marginBottom: 6,
-                  }}
-                >
+              <div key={i} style={{
+                background: "var(--black-elevated)",
+                border: "var(--block-border)",
+                padding: "18px 20px",
+              }}>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 600, color: "var(--white)", marginBottom: 6 }}>
                   {item.q}
                 </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-body)",
-                    fontSize: 13,
-                    color: "var(--grey-500)",
-                    lineHeight: 1.6,
-                  }}
-                >
+                <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--grey-500)", lineHeight: 1.6 }}>
                   {item.a}
                 </div>
               </div>
@@ -636,72 +377,66 @@ await agent.inscribe({
           </div>
         </section>
 
-        <Rule />
+        {/* ── CTA ────────────────────────────────────────────────────── */}
+        <section>
+          <div style={{
+            background: "var(--black-elevated)",
+            border: "1px solid rgba(220,38,38,0.2)",
+            padding: "40px 32px",
+            position: "relative",
+            textAlign: "center",
+          }}>
+            {/* corner marks */}
+            <div style={{ position: "absolute", top: -1, left: -1, width: 16, height: 16, borderTop: "2px solid var(--red)", borderLeft: "2px solid var(--red)" }} />
+            <div style={{ position: "absolute", top: -1, right: -1, width: 16, height: 16, borderTop: "2px solid var(--red)", borderRight: "2px solid var(--red)" }} />
+            <div style={{ position: "absolute", bottom: -1, left: -1, width: 16, height: 16, borderBottom: "2px solid var(--red)", borderLeft: "2px solid var(--red)" }} />
+            <div style={{ position: "absolute", bottom: -1, right: -1, width: 16, height: 16, borderBottom: "2px solid var(--red)", borderRight: "2px solid var(--red)" }} />
 
-        {/* ── CTA FOOTER ────────────────────────────────────────────── */}
-        <section style={{ textAlign: "center", padding: "16px 0 32px" }}>
-          <p
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 24,
-              fontWeight: 700,
-              color: "var(--white)",
-              margin: "0 0 20px",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            start in 60 seconds.
-          </p>
-          <TerminalBlock />
+            <p style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 700, color: "var(--white)", margin: "0 0 24px", letterSpacing: "-0.02em" }}>
+              start in 60 seconds.
+            </p>
+            <TerminalBlock />
+          </div>
         </section>
-
       </main>
 
-      {/* ── footer ─────────────────────────────────────────────────── */}
-      <footer
-        style={{
-          borderTop: "1px solid #111",
-          background: "#000",
-          padding: "24px 24px",
-          fontFamily: "var(--font-mono)",
-          fontSize: 11,
-          color: "var(--grey-700)",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 720,
-            margin: "0 auto",
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "8px 16px",
-          }}
-        >
-          <span>© {new Date().getFullYear()} Custos</span>
-
+      {/* ── FOOTER ────────────────────────────────────────────────────── */}
+      <footer style={{
+        borderTop: "var(--block-border)",
+        background: "#000",
+        padding: "24px",
+        fontFamily: "var(--font-mono)",
+        fontSize: 10,
+        color: "var(--grey-800)",
+        marginTop: 80,
+      }}>
+        <div style={{
+          maxWidth: 760, margin: "0 auto",
+          display: "flex", flexWrap: "wrap",
+          alignItems: "center", justifyContent: "space-between",
+          gap: "8px 16px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Image src="/logo.png" alt="Custos" width={16} height={16} />
+            <span>© {new Date().getFullYear()} Custos</span>
+          </div>
           <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
             {[
-              { label: "Dashboard", href: "https://dashboard.claws.tech" },
-              { label: "Network",   href: "https://dashboard.claws.tech/network" },
-              { label: "Docs",      href: "https://dashboard.claws.tech/docs" },
-              { label: "X",         href: "https://x.com/clawcustos" },
-              { label: "Farcaster", href: "https://warpcast.com/custos" },
-            ].map((l) => (
-              <a
-                key={l.label}
-                href={l.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: "var(--grey-700)", textDecoration: "none" }}
-              >
+              { label: "Dashboard",  href: "https://dashboard.claws.tech" },
+              { label: "Network",    href: "https://dashboard.claws.tech/network" },
+              { label: "Docs",       href: "https://dashboard.claws.tech/docs" },
+              { label: "X",          href: "https://x.com/clawcustos" },
+              { label: "Farcaster",  href: "https://warpcast.com/custos" },
+            ].map(l => (
+              <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer"
+                style={{ color: "var(--grey-800)", textDecoration: "none" }}>
                 {l.label}
               </a>
             ))}
           </div>
         </div>
       </footer>
+
     </div>
   );
 }

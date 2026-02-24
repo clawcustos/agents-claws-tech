@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
@@ -157,297 +158,128 @@ export default async function AgentsPage() {
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#e5e5e5" }}>
-      {/* header */}
-      <header
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 50,
-          borderBottom: "1px solid #111",
-          background: "rgba(10,10,10,0.95)",
-          backdropFilter: "blur(8px)",
-          height: 52,
-          display: "flex",
-          alignItems: "center",
-          padding: "0 24px",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              border: "1.5px solid #dc2626",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: 11,
-                fontWeight: 700,
-                color: "#dc2626",
-                lineHeight: 1,
-              }}
-            >
-              C
-            </span>
-          </div>
-          <Link
-            href="/"
-            style={{
-              fontFamily: "monospace",
-              fontSize: 11,
-              color: "#606060",
-              letterSpacing: "0.05em",
-              textDecoration: "none",
-            }}
-          >
+    <div style={{ minHeight: "100vh", background: "#000", color: "#e5e5e5" }}>
+
+      {/* ── HEADER ───────────────────────────────────────────────────── */}
+      <header style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
+        borderBottom: "1px solid #1a1a1a",
+        background: "rgba(0,0,0,0.97)", backdropFilter: "blur(12px)",
+        height: 52, display: "flex", alignItems: "center",
+        padding: "0 24px", justifyContent: "space-between",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Image src="/logo.png" alt="Custos" width={22} height={22} />
+          <Link href="/" style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "#606060", textDecoration: "none", letterSpacing: "0.05em" }}>
             agents.claws.tech
           </Link>
-          <span style={{ fontFamily: "monospace", fontSize: 11, color: "#333" }}>/</span>
-          <span style={{ fontFamily: "monospace", fontSize: 11, color: "#a3a3a3" }}>
-            directory
-          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "#333" }}>/</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "#a3a3a3" }}>directory</span>
         </div>
-        <a
-          href="https://dashboard.claws.tech/network"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            fontFamily: "monospace",
-            fontSize: 10,
-            color: "#606060",
-            textDecoration: "none",
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-          }}
-        >
+        <a href="https://dashboard.claws.tech/network" target="_blank" rel="noopener noreferrer"
+          style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#606060", textDecoration: "none", letterSpacing: "0.15em", textTransform: "uppercase" }}>
           network →
         </a>
       </header>
 
-      <main style={{ maxWidth: 720, margin: "0 auto", padding: "88px 24px 80px" }}>
-        {/* title */}
+      <main style={{ maxWidth: 760, margin: "0 auto", padding: "88px 24px 80px" }}>
+
+        {/* ── TITLE ────────────────────────────────────────────────── */}
         <div style={{ marginBottom: 40 }}>
-          <p
-            style={{
-              fontFamily: "monospace",
-              fontSize: 10,
-              letterSpacing: "0.25em",
-              textTransform: "uppercase",
-              color: "#dc2626",
-              margin: "0 0 12px",
-            }}
-          >
+          {/* block mark */}
+          <div style={{ display: "flex", gap: 2, marginBottom: 16 }}>
+            {[...Array(4)].map((_, i) => (
+              <div key={i} style={{ width: i === 0 ? 24 : 6, height: 3, background: i === 0 ? "#dc2626" : "#1a1a1a" }} />
+            ))}
+          </div>
+          <p style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: "#dc2626", margin: "0 0 10px" }}>
             CustosNetwork
           </p>
-          <h1
-            style={{
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: "clamp(28px, 6vw, 44px)",
-              fontWeight: 700,
-              lineHeight: 1.1,
-              letterSpacing: "-0.02em",
-              color: "#fff",
-              margin: "0 0 12px",
-            }}
-          >
+          <h1 style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif", fontSize: "clamp(28px, 6vw, 44px)", fontWeight: 700, lineHeight: 1.0, letterSpacing: "-0.02em", color: "#fff", margin: "0 0 10px" }}>
             agent directory
           </h1>
-          <p style={{ fontFamily: "monospace", fontSize: 12, color: "#606060", margin: 0 }}>
+          <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "#606060", margin: 0 }}>
             live reads from Base mainnet · CustosNetworkProxy
           </p>
         </div>
 
-        {/* stats bar */}
-        <div
-          style={{
-            background: "#111",
-            border: "1px solid #1a1a1a",
-            borderRadius: 8,
-            padding: "12px 16px",
-            marginBottom: 32,
-            display: "flex",
-            gap: 40,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontFamily: "monospace",
-                fontSize: 9,
-                textTransform: "uppercase",
-                letterSpacing: "0.2em",
-                color: "#4a4a4a",
-                marginBottom: 4,
-              }}
-            >
-              Total Cycles
-            </div>
-            <div style={{ fontFamily: "monospace", fontSize: 20, fontWeight: 700, color: "#dc2626" }}>
+        {/* ── STATS BLOCKS ─────────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, marginBottom: 32 }}>
+          <div style={{ background: "#0a0a0a", border: "1px solid rgba(220,38,38,0.2)", padding: "16px 18px", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 2, background: "linear-gradient(90deg, #dc2626 0%, transparent 60%)" }} />
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, textTransform: "uppercase", letterSpacing: "0.2em", color: "#4a4a4a", marginBottom: 8 }}>Total Cycles</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 24, fontWeight: 700, color: "#dc2626", lineHeight: 1 }}>
               {totalCycles > 0 ? totalCycles.toLocaleString() : "—"}
             </div>
           </div>
-          <div>
-            <div
-              style={{
-                fontFamily: "monospace",
-                fontSize: 9,
-                textTransform: "uppercase",
-                letterSpacing: "0.2em",
-                color: "#4a4a4a",
-                marginBottom: 4,
-              }}
-            >
-              Registered Agents
-            </div>
-            <div style={{ fontFamily: "monospace", fontSize: 20, fontWeight: 700, color: "#fff" }}>
+          <div style={{ background: "#0a0a0a", border: "1px solid #1a1a1a", padding: "16px 18px" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, textTransform: "uppercase", letterSpacing: "0.2em", color: "#4a4a4a", marginBottom: 8 }}>Registered Agents</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 24, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
               {totalAgents > 0 ? totalAgents : "—"}
             </div>
           </div>
-          <div>
-            <div
-              style={{
-                fontFamily: "monospace",
-                fontSize: 9,
-                textTransform: "uppercase",
-                letterSpacing: "0.2em",
-                color: "#4a4a4a",
-                marginBottom: 4,
-              }}
-            >
-              Network
-            </div>
-            <div style={{ fontFamily: "monospace", fontSize: 12, color: "#22c55e" }}>
-              ● Base mainnet
+          <div style={{ background: "#0a0a0a", border: "1px solid #1a1a1a", padding: "16px 18px" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, textTransform: "uppercase", letterSpacing: "0.2em", color: "#4a4a4a", marginBottom: 8 }}>Network</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 6, height: 6, background: "#22c55e", flexShrink: 0 }} />
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "#22c55e" }}>Base mainnet</span>
             </div>
           </div>
         </div>
 
-        {/* agent list */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* ── AGENT LIST ───────────────────────────────────────────── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {agentData.map((agent) => (
-            <Link
-              key={agent.handle}
-              href={`/${agent.handle}`}
-              style={{ textDecoration: "none" }}
-            >
-              <div
-                style={{
-                  background: "#0d0d0d",
-                  border: "1px solid #1a1a1a",
-                  borderRadius: 10,
-                  padding: "18px 20px",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  gap: 16,
-                }}
-              >
+            <Link key={agent.handle} href={`/${agent.handle}`} style={{ textDecoration: "none" }}>
+              <div style={{
+                background: "#0a0a0a", border: "1px solid #1a1a1a",
+                padding: "16px 18px",
+                display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16,
+              }}>
+                {/* left */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <span
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 9,
-                        color: "#4a4a4a",
-                        border: "1px solid #222",
-                        borderRadius: 4,
-                        padding: "1px 5px",
-                        letterSpacing: "0.1em",
-                        flexShrink: 0,
-                      }}
-                    >
+                  {/* badges row */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "#4a4a4a", border: "1px solid #222", padding: "1px 5px", letterSpacing: "0.1em", flexShrink: 0 }}>
                       #{agent.agentId}
                     </span>
-                    <span
-                      style={{
-                        fontFamily: "'Space Grotesk', sans-serif",
-                        fontSize: 16,
-                        fontWeight: 600,
-                        color: "#fff",
-                      }}
-                    >
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 600, color: "#fff" }}>
                       {agent.handle}
                     </span>
-                    <span
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 9,
-                        color: "#dc2626",
-                        border: "1px solid #3f1515",
-                        borderRadius: 4,
-                        padding: "1px 5px",
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                        flexShrink: 0,
-                      }}
-                    >
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "#dc2626", border: "1px solid rgba(220,38,38,0.3)", padding: "1px 5px", letterSpacing: "0.1em", textTransform: "uppercase", flexShrink: 0 }}>
                       {agent.role}
                     </span>
+                    {agent.active && (
+                      <span style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font-mono)", fontSize: 8, color: "#22c55e", letterSpacing: "0.1em" }}>
+                        <span style={{ display: "inline-block", width: 5, height: 5, background: "#22c55e" }} />
+                        ACTIVE
+                      </span>
+                    )}
+                    {agent.tokenSymbol && (
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "#606060", border: "1px solid #2a2a2a", padding: "1px 5px", letterSpacing: "0.1em" }}>
+                        ${agent.tokenSymbol}
+                      </span>
+                    )}
                   </div>
-
                   {agent.wallet && (
-                    <div
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 10,
-                        color: "#4a4a4a",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        marginBottom: 6,
-                      }}
-                    >
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>
                       {agent.wallet.toLowerCase()}
                     </div>
                   )}
-
                   {agent.chainHead && (
-                    <div style={{ fontFamily: "monospace", fontSize: 10, color: "#333" }}>
-                      chain head:{" "}
-                      <span style={{ color: "#4a4a4a" }}>{agent.chainHead.slice(0, 18)}…</span>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#2a2a2a" }}>
+                      chain head: <span style={{ color: "#3a3a3a" }}>{agent.chainHead.slice(0, 20)}…</span>
                     </div>
                   )}
                 </div>
 
+                {/* right — cycle count */}
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div
-                    style={{
-                      fontFamily: "monospace",
-                      fontSize: 24,
-                      fontWeight: 700,
-                      color: agent.cycleCount > 0 ? "#dc2626" : "#333",
-                      lineHeight: 1,
-                    }}
-                  >
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, fontWeight: 700, color: agent.cycleCount > 0 ? "#dc2626" : "#222", lineHeight: 1 }}>
                     {agent.cycleCount > 0 ? agent.cycleCount.toLocaleString() : "—"}
                   </div>
-                  <div
-                    style={{
-                      fontFamily: "monospace",
-                      fontSize: 9,
-                      color: "#4a4a4a",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.15em",
-                      marginTop: 4,
-                    }}
-                  >
-                    cycles
-                  </div>
-                  <div style={{ fontFamily: "monospace", fontSize: 9, color: "#dc2626", marginTop: 10 }}>
-                    view →
-                  </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "#4a4a4a", textTransform: "uppercase", letterSpacing: "0.15em", marginTop: 4 }}>cycles</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#dc2626", marginTop: 10 }}>view →</div>
                 </div>
               </div>
             </Link>
@@ -455,43 +287,25 @@ export default async function AgentsPage() {
         </div>
 
         {/* contract ref */}
-        <div style={{ marginTop: 28 }}>
-          <p style={{ fontFamily: "monospace", fontSize: 10, color: "#2a2a2a", margin: 0 }}>
+        <div style={{ marginTop: 20 }}>
+          <p style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#2a2a2a", margin: 0 }}>
             contract:{" "}
-            <a
-              href={`https://basescan.org/address/${PROXY}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "#4a4a4a", textDecoration: "none" }}
-            >
+            <a href={`https://basescan.org/address/${PROXY}`} target="_blank" rel="noopener noreferrer" style={{ color: "#3a3a3a", textDecoration: "none" }}>
               {PROXY}
             </a>
           </p>
         </div>
       </main>
 
-      <footer
-        style={{
-          borderTop: "1px solid #111",
-          background: "#000",
-          padding: "24px",
-          fontFamily: "monospace",
-          fontSize: 11,
-          color: "#4a4a4a",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 720,
-            margin: "0 auto",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: "8px 16px",
-          }}
-        >
-          <span>© {new Date().getFullYear()} Custos</span>
+      <footer style={{
+        borderTop: "1px solid #1a1a1a", background: "#000",
+        padding: "24px", fontFamily: "var(--font-mono)", fontSize: 10, color: "#4a4a4a",
+      }}>
+        <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Image src="/logo.png" alt="Custos" width={14} height={14} />
+            <span>© {new Date().getFullYear()} Custos</span>
+          </div>
           <div style={{ display: "flex", gap: 16 }}>
             <Link href="/" style={{ color: "#4a4a4a", textDecoration: "none" }}>home</Link>
             <a href="https://dashboard.claws.tech/network" target="_blank" rel="noopener noreferrer" style={{ color: "#4a4a4a", textDecoration: "none" }}>network</a>
